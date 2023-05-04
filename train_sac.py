@@ -8,14 +8,12 @@ import numpy as np
 from tqdm import tqdm
 import wandb
 
-from rl_tools.buffer import SimpleOnPolicyBuffer
-from rl_tools.saver import Pickler
+from rl_tools.config import get_config
 
 from envs.half_cheetah_envpool import EnvpoolHalfCheetah
 
 # from ppo.modular_ppo import PPO
 from sac.sac import SAC
-from sac.read_config import get_config
 from buffer import ReplayBuffer
 
 

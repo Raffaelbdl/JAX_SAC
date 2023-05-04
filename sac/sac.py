@@ -11,11 +11,11 @@ import numpy as np
 import optax
 
 from rl_tools.agent import Agent
+from rl_tools.distributions import normal_and_tanh_sample_and_log_prob
 from rl_tools.update import update
 
 from sac.loss import get_sac_loss_fn
 from sac.networks import get_continuous_networks
-from sac.distributions import normal_and_tanh_sample_and_log_prob
 
 
 class SAC(Agent):

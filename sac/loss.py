@@ -1,7 +1,7 @@
 from functools import partial
 
 import jax.numpy as jnp
-from sac.distributions import normal_and_tanh_sample_and_log_prob
+from rl_tools.distributions import normal_and_tanh_sample_and_log_prob
 
 
 def get_sac_loss_fn(config, actor_fwd, critic_fwd):
