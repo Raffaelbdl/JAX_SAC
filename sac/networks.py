@@ -26,7 +26,7 @@ class ContinuousActor(hk.Module):
 
         m_logits = hk.Linear(self.n, w_init=self.output_w_init, b_init=self.b_init)(x)
         m_std_logs = jnn.tanh(
-            hk.Linear(self.n, w_init=self.output_w_init, b_init=self.b_init)
+            hk.Linear(self.n, w_init=self.output_w_init, b_init=self.b_init)(x)
         )
 
         return distrax.Normal(m_logits, jnp.exp(m_std_logs))
@@ -65,7 +65,7 @@ class DoubleContinuousCritic(hk.Module):
 def get_continuous_networks(config: dict):
     key1, key2 = jrd.split(jrd.PRNGKey(config["seed"]), 2)
     observations = jnp.zeros((1,) + config["observation_shape"], jnp.float32)
-    actions = jnp.zeros((1,) + config["n_actions"], jnp.float32)
+    actions = jnp.zeros((1, config["n_actions"]), jnp.float32)
 
     @hk.transform
     def actor_transformed(observations):
