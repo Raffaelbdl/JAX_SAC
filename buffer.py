@@ -22,17 +22,17 @@ class ReplayBuffer:
         self.n_envs = n_envs
         self.buffer_size = max(buffer_size // self.n_envs, 1)
 
-        self.obs_shape = obs_space.shape
-        self.action_shape = action_space.shape
+        self.obs_shape = (self.n_envs,) + obs_space.shape
+        self.action_shape = (self.n_envs,) + action_space.shape
 
         self.observations = np.zeros(
-            (self.buffer_size, self.n_envs) + self.obs_shape, obs_space.dtype
+            (self.buffer_size,) + self.obs_shape, obs_space.dtype
         )
         self.actions = np.zeros(
-            (self.buffer_size, self.n_envs) + self.action_shape, action_space.dtype
+            (self.buffer_size,) + self.action_shape, action_space.dtype
         )
         self.rewards = np.zeros((self.buffer_size, self.n_envs), np.float32)
-        self.dones = np.zeros((self.buffer_size, self.n_envs, np.float32))
+        self.dones = np.zeros((self.buffer_size, self.n_envs), np.float32)
 
         self.pos = 0
         self.full = False
@@ -45,8 +45,11 @@ class ReplayBuffer:
         done: np.ndarray,
         next_obs: np.ndarray,
     ) -> None:
-        obs = obs.reshape((self.n_envs,) + self.obs_shape)
-        action = action.reshape((self.n_envs,) + self.action_shape)
+        obs = obs.reshape(self.obs_shape)
+        action = action.reshape(self.action_shape)
+        reward = reward.reshape((self.n_envs,))
+        done = reward.reshape((self.n_envs,))
+        next_obs = obs.reshape(self.obs_shape)
 
         self.observations[self.pos] = obs.copy()
         self.actions[self.pos] = action.copy()
@@ -70,7 +73,7 @@ class ReplayBuffer:
     def _get_samples(self, inds: np.ndarray) -> Dict[str, np.ndarray]:
         return {
             "observations": self.observations[inds],
-            "actions": self.observations[inds],
+            "actions": self.actions[inds],
             "rewards": self.rewards[inds],
             "dones": self.dones[inds],
             "next_observations": self.observations[(inds + 1) % self.buffer_size],
