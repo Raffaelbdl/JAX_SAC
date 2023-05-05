@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from rl_tools.distributions import normal_and_tanh_sample_and_log_prob
 
 
-def get_sac_loss_fn(config, actor_fwd, critic_fwd):
+def get_sac_loss_fn(config, actor_fwd, critic_fwd, log_alpha_fwd):
     def critic_loss_fn(params, key, batch):
         observations = batch["observations"]
         actions = batch["actions"]
@@ -24,8 +24,22 @@ def get_sac_loss_fn(config, actor_fwd, critic_fwd):
         q1, q2 = critic_fwd(batch["critic_params"], None, observations, actions)
 
         log_probs = jnp.sum(log_probs, axis=-1, keepdims=True)
-        actor_loss = -jnp.mean(jnp.fmin(q1, q2) - config["alpha"] * log_probs)
+        min_q = jnp.fmin(q1, q2)
+        alpha = jnp.exp(log_alpha_fwd(batch["log_alpha_params"]))
+        actor_loss = jnp.mean(alpha * log_probs - min_q)
 
         return actor_loss, {"actor_loss": actor_loss}
 
-    return actor_loss_fn, critic_loss_fn
+    def alpha_loss_fn(params, key, batch):
+        observations = batch["observations"]
+        target_entropy = -config["n_actions"]
+
+        dists = actor_fwd(batch["actor_params"], None, observations)
+        _, log_probs = normal_and_tanh_sample_and_log_prob(key, dists)
+
+        log_alpha = log_alpha_fwd(params)
+        alpha_loss = jnp.mean((-log_alpha * (log_probs + target_entropy)))
+
+        return alpha_loss, {"log_alpha": log_alpha, "alpha_loss": alpha_loss}
+
+    return actor_loss_fn, critic_loss_fn, alpha_loss_fn

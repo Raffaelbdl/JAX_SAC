@@ -1,11 +1,10 @@
-from typing import Optional, Type
+from typing import Optional
 
 import distrax
 import haiku as hk
 import jax.nn as jnn
 import jax.numpy as jnp
 import jax.random as jrd
-import numpy as np
 
 
 class ContinuousActor(hk.Module):
@@ -14,39 +13,35 @@ class ContinuousActor(hk.Module):
 
         self.n = config["n_actions"]
 
-        self.encoder_w_init = hk.initializers.Orthogonal(np.sqrt(2))
-        self.output_w_init = hk.initializers.Orthogonal(0.01)
-        self.b_init = hk.initializers.Constant(0.0)
+        self.log_std_max = 2
+        self.log_std_min = -5
 
     def __call__(self, observations: jnp.ndarray) -> jnp.ndarray:
         x = observations
 
-        x = jnn.relu(hk.Linear(256, w_init=self.encoder_w_init, b_init=self.b_init)(x))
-        x = jnn.relu(hk.Linear(256, w_init=self.encoder_w_init, b_init=self.b_init)(x))
+        x = jnn.relu(hk.Linear(256)(x))
+        x = jnn.relu(hk.Linear(256)(x))
 
-        m_logits = hk.Linear(self.n, w_init=self.output_w_init, b_init=self.b_init)(x)
-        m_std_logs = jnn.tanh(
-            hk.Linear(self.n, w_init=self.output_w_init, b_init=self.b_init)(x)
-        )
+        loc = hk.Linear(self.n, name="loc")(x)
+        log_std = jnn.tanh(hk.Linear(self.n, name="log_std")(x))
 
-        return distrax.Normal(m_logits, jnp.exp(m_std_logs))
+        log_std = 0.5 * (self.log_std_max - self.log_std_min) * (log_std + 1)
+        log_std += self.log_std_min
+
+        return distrax.Normal(loc, jnp.exp(log_std))
 
 
 class ContinuousCritic(hk.Module):
     def __init__(self, config: dict, name: Optional[str] = None):
         super().__init__(name)
 
-        self.encoder_w_init = hk.initializers.Orthogonal(np.sqrt(2))
-        self.output_w_init = hk.initializers.Orthogonal(1.0)
-        self.b_init = hk.initializers.Constant(0.0)
-
     def __call__(self, observations: jnp.ndarray, actions: jnp.ndarray) -> jnp.ndarray:
         x = jnp.concatenate([observations, actions], axis=-1)
 
-        x = jnn.relu(hk.Linear(256, w_init=self.encoder_w_init, b_init=self.b_init)(x))
-        x = jnn.relu(hk.Linear(256, w_init=self.encoder_w_init, b_init=self.b_init)(x))
+        x = jnn.relu(hk.Linear(256)(x))
+        x = jnn.relu(hk.Linear(256)(x))
 
-        return hk.Linear(1, w_init=self.output_w_init, b_init=self.b_init)(x)
+        return hk.Linear(1)(x)
 
 
 class DoubleContinuousCritic(hk.Module):
@@ -63,7 +58,7 @@ class DoubleContinuousCritic(hk.Module):
 
 
 def get_continuous_networks(config: dict):
-    key1, key2 = jrd.split(jrd.PRNGKey(config["seed"]), 2)
+    key1, key2, key3 = jrd.split(jrd.PRNGKey(config["seed"]), 3)
     observations = jnp.zeros((1,) + config["observation_shape"], jnp.float32)
     actions = jnp.zeros((1, config["n_actions"]), jnp.float32)
 
@@ -81,7 +76,15 @@ def get_continuous_networks(config: dict):
     critic_fwd = critic_transformed.apply
     critic_params = critic_transformed.init(key2, observations, actions)
 
-    fwd = [actor_fwd, critic_fwd]
-    params = [actor_params, critic_params]
+    @hk.without_apply_rng
+    @hk.transform
+    def log_alpha_transformed():
+        return hk.get_parameter("alpha", (), init=jnp.zeros)
+
+    log_alpha_fwd = log_alpha_transformed.apply
+    log_alpha_params = log_alpha_transformed.init(key3)
+
+    fwd = [actor_fwd, critic_fwd, log_alpha_fwd]
+    params = [actor_params, critic_params, log_alpha_params]
 
     return fwd, params
