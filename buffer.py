@@ -48,7 +48,7 @@ class ReplayBuffer:
         obs = obs.reshape(self.obs_shape)
         action = action.reshape(self.action_shape)
         reward = reward.reshape((self.n_envs,))
-        done = reward.reshape((self.n_envs,))
+        done = done.reshape((self.n_envs,))
         next_obs = obs.reshape(self.obs_shape)
 
         self.observations[self.pos] = obs.copy()
