@@ -6,7 +6,7 @@ from rl_tools.buffer import ReplayBuffer
 from rl_tools.config import get_config
 from rl_tools.saver import Pickler
 
-from sac.sac_one_file import SAC
+from sac_one_file import SAC
 
 
 def train_sac(config_path: str, **kwargs):
