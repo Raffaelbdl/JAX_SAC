@@ -122,7 +122,6 @@ def get_loss_fn(config, actor_fwd, critic_fwd, alpha_fwd):
         observations = batch["observations"]
         actions, log_probs = actor_fwd(params, key, observations)
 
-        # stop gradients just in case
         q1, q2 = critic_fwd(batch["critic_params"], None, observations, actions)
         min_q = jnp.minimum(q1, q2)
         log_alpha = alpha_fwd(batch["alpha_params"], None)
