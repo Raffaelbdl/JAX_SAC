@@ -1,2 +1,2 @@
 # JAX_SAC
-An implementation of SAC in JAX
+Single file implementation of Soft Actor Critic in JAX
